@@ -4,6 +4,7 @@ import React, { FunctionComponent, Suspense } from 'react'
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom'
 import { RecoilRoot } from 'recoil'
 import App from './App'
+import About from './About'
 
 const AppRouter: FunctionComponent = () => {
   return (
@@ -12,6 +13,7 @@ const AppRouter: FunctionComponent = () => {
         <Suspense fallback={<span>Loading...</span>}>
           <Switch>
             <Route exact path="/" component={App} />
+            <Route exact path="/about" component={About} />
           </Switch>
         </Suspense>
       </RecoilRoot>
