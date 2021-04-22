@@ -9,7 +9,16 @@ import moment from 'moment';
 
 export default class OperationProduct extends React.PureComponent<IOperationProductProps, IOperationProductState> {
   serviceIp = "10.50.10.6";
-  strSql = "select * from tad_product_info";
+  //strSql = "select * from tad_product_info";
+  gStrSql = "select * from tad_module_info";
+  gArrTableName = [
+    "tad_module_info",
+    "tad_product_info",
+    "tad_product_version_info",
+    "tad_product_manager_info",
+    "tad_product_line_info",
+    "tad_product_rel"
+  ]
   domMain: any;
   mapRecordValues = new Map();
   uniqueKey = 999;
@@ -74,11 +83,12 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     this.doUpdateClose = this.doUpdateClose.bind(this);
     this.doDelete = this.doDelete.bind(this);
     this.doRefresh = this.doRefresh.bind(this);
+    this.onChangeTableSelected = this.onChangeTableSelected.bind(this);
   }
 
   componentDidMount() {
     this.domMain = ReactDom.findDOMNode(this);
-    this.doRefresh()
+    // this.doRefresh()
   }
 
   doFilter() {
@@ -224,11 +234,11 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     strSql = "select * from " + tableName + " where " + strSql;
     console.log(strSql);
 
-    this.strSql = strSql;
+    this.gStrSql = strSql;
 
     // /*
     axios.post("http://" + this.serviceIp + ":8090/rest/mysql/select", {
-        sql: this.strSql,
+        sql: this.gStrSql,
         pageRows: 0,
         pageNum: 0,
         tag: "test by K"
@@ -649,7 +659,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   doRefresh() {
     //TODO::K::调用rest服务，获取数据
     axios.post("http://" + this.serviceIp + ":8090/rest/mysql/select", {
-        sql: this.strSql,
+        sql: this.gStrSql,
         pageRows: 0,
         pageNum: 0,
         tag: "test by K"
@@ -750,13 +760,23 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     }
   }
 
+  onChangeTableSelected(e: any) {
+    this.gStrSql = "select * from " + e;
+    console.log(e, this.gStrSql);
+
+    this.setState({tableDatasource: [], tableColumns: []});
+  }
+
   render() {
     return (
       <div className="OperationProduct">
         <div className="Main">
           <div className="BoxToolbar">
-            <Select defaultValue="TAD_PRODUCT_INFO">
-              <Select.Option value="TAD_PRODUCT_INFO">TAD_PRODUCT_INFO</Select.Option>
+            <Select defaultValue={this.gArrTableName[0]}
+                    onChange={(e) => {this.onChangeTableSelected(e)}}>
+              {this.gArrTableName.map((item, index) => {
+                return <Select.Option key={index} value={item}>{item}</Select.Option>
+              })}
             </Select>
             <Button onClick={this.doQuery}>查询</Button>
             <Button onClick={this.doInsert}>增加</Button>
