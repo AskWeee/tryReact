@@ -6,10 +6,11 @@ import {Button, DatePicker, Input, InputNumber, Select, Table, TimePicker} from 
 import moment from 'moment';
 
 export default class OperationProduct extends React.PureComponent<IOperationProductProps, IOperationProductState> {
-  gStrServiceIp = "10.50.10.12";
+  gStrServiceIp = "10.50.10.18";
   gStrSql = "";
   gDomMain: any;
   gMapAntdSelectedRowValues = new Map(); // 存储当前表格选中行的记录值
+  gMapQueryFieldsInfo = new Map(); // 存储当前表格选中行的记录值
   gIntDatabaseRecordKey = 999;
   gIntReactElementKey = 0;
   gArrSelectedRowValues = new Array<any>();
@@ -28,7 +29,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       name: record.product_id
     })
   };
-  gMapTables = new Map();
+  gMapTablesInfo = new Map(); // {tableName: {fields: [{filedName: {fieldAttributeName: fieldAttributeValues}]
 
   constructor(props: IOperationProductProps) {
     super(props);
@@ -76,6 +77,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     this.onChangeTableSelected = this.onChangeTableSelected.bind(this);
     this.doGetSchema = this.doGetSchema.bind(this);
     this.onChangeQueryFieldOperatorSelected = this.onChangeQueryFieldOperatorSelected.bind(this);
+    this.onChangeQueryFieldValueInput = this.onChangeQueryFieldValueInput.bind(this);
+    this.onClickButtonConfigFieldDatasource = this.onClickButtonConfigFieldDatasource.bind(this);
 
     this.doGetSchema();
   }
@@ -149,9 +152,9 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
         let fLength = data.records[i].fieldValues[tableInfo.field_length.columnIndex];
         let fNullable = data.records[i].fieldValues[tableInfo.field_nullable.columnIndex].toLowerCase();
         let fWritable = "yes";
-        if (!this.gMapTables.has(tName)) {
-          this.gMapTables.set(tName, new Map());
-          this.gMapTables.get(tName).set(fName, {
+        if (!this.gMapTablesInfo.has(tName)) {
+          this.gMapTablesInfo.set(tName, {fields: new Map()});
+          this.gMapTablesInfo.get(tName).fields.set(fName, {
             "isPrimaryKey": fKey === "pri",
             "type": fType,
             "length": fLength,
@@ -159,7 +162,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
             "isWritable": fWritable === "yes"
           });
         } else {
-          this.gMapTables.get(tName).set(fName, {
+          this.gMapTablesInfo.get(tName).fields.set(fName, {
             "isPrimaryKey": fKey === "pri",
             "type": fType,
             "length": fLength,
@@ -168,7 +171,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
           });
         }
 
-        if (this.gMapTables.get(tName).get(fName).isPrimaryKey) this.gMapTables.get(tName).get(fName).isWritable = false;
+        if (this.gMapTablesInfo.get(tName).fields.get(fName).isPrimaryKey) this.gMapTablesInfo.get(tName).fields.get(fName).isWritable = false;
 
         for (let j = 0; j < columns.length; j++) {
           Object.defineProperty(v, columns[j],
@@ -178,9 +181,10 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       }
 
       let arrTableNames = new Array<string>();
-      this.gMapTables.forEach(function (value, key) {
+      this.gMapTablesInfo.forEach(function (value, key) {
         arrTableNames.push(key);
       });
+
       this.setState({tableNames: arrTableNames})
     }).catch(function (error) {
         console.log(error);
@@ -190,7 +194,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   doGetFieldsWritable(tableName: string) {
     let result = new Array<string>();
 
-    (this.gMapTables.get(tableName) as Map<any,any>).forEach(function (value, key) {
+    (this.gMapTablesInfo.get(tableName).fields as Map<any,any>).forEach(function (value, key) {
       if (value.isWritable) result.push(key);
     });
 
@@ -217,14 +221,24 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
 
     let jsxDialog: any = [];
 
-    for (let i = 0; i < this.state.antdTableColumns.length; i++) {
-      let title = this.state.antdTableColumns[i].title;
+    let columns = new Array<any>();
+    if (this.gMapTablesInfo.has(this.state.tableName)) {
+      let fields = this.gMapTablesInfo.get(this.state.tableName).fields;
+      fields.forEach((value: any, key: any) => {
+        columns.push({title: key, key: this.doGetElementKey(), fieldType: value.type });
+      });
+    }
+    for (let i = 0; i < columns.length; i++) {
+      let title = columns[i].title;
       let comDynamic: any;
-      let keyComDynamic = this.state.antdTableColumns[i].key;
-      let s = keyComDynamic;
-      let fieldType = this.state.antdTableColumns[i].fieldType;
+      let keyComDynamic = columns[i].key;
+      let s = columns[i].title;
+      let fieldType = columns[i].fieldType;
+      let fieldOperatorLast = (this.gMapQueryFieldsInfo.get(title) !== undefined) ? this.gMapQueryFieldsInfo.get(title)!.operator : "";
+      let fieldValueLast = (this.gMapQueryFieldsInfo.get(title) !== undefined) ? this.gMapQueryFieldsInfo.get(title)!.value : "";
       switch (fieldType) {
         case "int":
+          if (fieldOperatorLast === "") fieldOperatorLast = "greatEqual";
           comDynamic = <div style={{display: "grid", gridTemplateColumns: "auto 1fr", gridGap: "5px"}}>
             <Select defaultValue="greatEqual"
                     onChange={(e) => this.onChangeQueryFieldOperatorSelected(e, s, fieldType)}>
@@ -237,10 +251,12 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
             </Select>
             <InputNumber style={{width: "100%"}}
                          key={keyComDynamic}
-                         onChange={(e) => this.onChangeInput(e, s, fieldType)}/>
+                         defaultValue={fieldValueLast}
+                         onChange={(e) => this.onChangeQueryFieldValueInput(e, s, fieldType)}/>
           </div>
           break
         case "datetime":
+          if (fieldOperatorLast === "") fieldOperatorLast = "like";
           comDynamic = <div style={{display: "grid", gridTemplateColumns: "auto 1fr 1fr", gridGap: "5px"}}>
             <Select defaultValue="greatEqual"
                     onChange={(e) => this.onChangeQueryFieldOperatorSelected(e, s, fieldType)}>
@@ -253,12 +269,15 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
             </Select>
             <DatePicker
               key={keyComDynamic}
+              //todo::add date
               onChange={(e) => this.onChangeInput(e, s, 'date')}/>
             <TimePicker
-              onChange={(e) => this.onChangeInput(e, s, 'time')}/>
+              //todo::add time
+              onChange={(e) => this.onChangeQueryFieldValueInput(e, s, 'time')}/>
           </div>
           break
         default:
+          if (fieldOperatorLast === "") fieldOperatorLast = "greatEqual";
           comDynamic = <div style={{display: "grid", gridTemplateColumns: "auto 1fr", gridGap: "5px"}}>
             <Select defaultValue="like"
                     onChange={(e) => this.onChangeQueryFieldOperatorSelected(e, s, fieldType)}>
@@ -268,11 +287,12 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
             </Select>
             <Input
               key={keyComDynamic}
-              onChange={(e) => this.onChangeInput(e, s, fieldType)}/>
+              defaultValue={fieldValueLast}
+              onChange={(e) => this.onChangeQueryFieldValueInput(e, s, fieldType)}/>
           </div>
           break
       }
-      let keyBoxField = "box_" + this.state.antdTableColumns[i].key;
+      let keyBoxField = "box_" + columns[i].key;
       jsxDialog.push(<div key={keyBoxField} className={"BoxField"}>
         <div className="Title">{title}</div>
         <div className="Value">{comDynamic}</div>
@@ -289,64 +309,61 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     let tableName = this.state.tableName;
     let strSql = "";
 
-    if (this.gMapAntdSelectedRowValues.size <= 0) {
-      this.setState({message: "没有做任何更改"});
-      return
+    if (this.gMapQueryFieldsInfo.size <= 0) {
+      strSql = "select * from " + tableName;
+    } else {
+
+      this.gMapQueryFieldsInfo.forEach(function (value, key) {
+
+        let operator = value.operator;
+        switch (value.operator) {
+          case "equal":
+            operator = " = ";
+            break
+          case "noEqual":
+            operator = " != ";
+            break
+          case "great":
+            operator = " > ";
+            break
+          case "greatEqual":
+            operator = " >= ";
+            break
+          case "less":
+            operator = " < ";
+            break
+          case "lessEqual":
+            operator = " <= ";
+            break
+          case "like":
+            operator = " like ";
+            break
+        }
+        strSql += key + operator;
+        switch (value.type) {
+          case "int":
+            strSql += value.value + " and ";
+            break
+          case "varchar":
+            strSql += "'" + value.value + "' and ";
+            break
+          case "datetime":
+            let strDate = value.value.date;
+            let strTime = value.value.time;
+
+            if (strDate !== "") {
+              if (strTime === "") strTime = "00:00:00";
+              strSql += strDate + " " + strTime + "' and "
+            }
+            break
+        }
+
+      });
+
+      strSql = strSql.substr(0, strSql.length - 5);
+      strSql = "select * from " + tableName + " where " + strSql;
     }
-
-    this.gMapAntdSelectedRowValues.forEach(function (value, key) {
-
-      let operator = value.operator;
-      console.log(value.operator);
-      //todo::ooo
-      switch (value.operator) {
-        case "equal":
-          operator = " = ";
-          break
-        case "noEqual":
-          operator = " != ";
-          break
-        case "great":
-          operator = " > ";
-          break
-        case "greatEqual":
-          operator = " >= ";
-          break
-        case "less":
-          operator = " < ";
-          break
-        case "lessEqual":
-          operator = " <= ";
-          break
-        case "like":
-          operator = " like ";
-          break
-      }
-      strSql += key + operator;
-      console.log(value.type);
-      switch (value.type) {
-        case "int":
-          strSql += value.value + " and ";
-          break
-        case "varchar":
-          strSql += "'" + value.value + "' and ";
-          break
-        case "datetime":
-          let strDate = value.value.date;
-          let strTime = value.value.time;
-
-          if (strDate !== "") {
-            if (strTime === "") strTime = "00:00:00";
-            strSql += strDate + " " + strTime + "' and "
-          }
-          break
-      }
-
-    });
-
-    strSql = strSql.substr(0, strSql.length - 5);
-    strSql = "select * from " + tableName + " where " + strSql;
-    console.log(strSql);
+    console.log("K-SQL-QUERY", strSql);
 
     this.gStrSql = strSql;
 
@@ -424,7 +441,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     let strWhere = " where ";
     for (let propertyName of Object.keys(this.gArrSelectedRowValues[0])) {
       if (propertyName !== 'key') {
-        let fType = this.gMapTables.get(this.state.tableName).get(propertyName).type;
+        let fType = this.gMapTablesInfo.get(this.state.tableName).fields.get(propertyName).type;
 
         if (fType === "int") {
           strWhere += propertyName + "=" + this.gArrSelectedRowValues[0][propertyName] + " and ";
@@ -481,12 +498,20 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
 
     let jsxDialog: any = [];
 
-    for (let i = 0; i < this.state.antdTableColumns.length; i++) {
-      let title = this.state.antdTableColumns[i].title;
+    let columns = new Array<any>();
+    if (this.gMapTablesInfo.has(this.state.tableName)) {
+      let fields = this.gMapTablesInfo.get(this.state.tableName).fields;
+      fields.forEach((value: any, key: any) => {
+        columns.push({title: key, key: this.doGetElementKey(), fieldType: value.type });
+      });
+    }
+
+    for (let i = 0; i < columns.length; i++) {
+      let title = columns[i].title;
       let comDynamic: any;
-      let keyComDynamic = this.state.antdTableColumns[i].key;
-      let s = keyComDynamic;
-      let fType = this.state.antdTableColumns[i].fieldType;
+      let keyComDynamic = columns[i].key;
+      let s = columns[i].title;
+      let fType = columns[i].fieldType;
       switch (fType) {
         case "int":
           comDynamic = <InputNumber style={{width: "100%"}} key={keyComDynamic}
@@ -502,9 +527,9 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
           comDynamic = <Input key={keyComDynamic} onChange={(e) => this.onChangeInput(e, s, fType)}/>
           break
       }
-      let keyBoxField = "box_" + this.state.antdTableColumns[i].key;
+      let keyBoxField = "box_" + columns[i].key;
       jsxDialog.push(<div key={keyBoxField} className={"BoxField"}>
-        <div className="Title">{title}</div>
+        <div><div className="Title">{title}</div> <Button onClick={(e) => this.onClickButtonConfigFieldDatasource(e, keyBoxField)}>数据来源</Button></div>
         <div className="Value">{comDynamic}</div>
       </div>)
     }
@@ -601,7 +626,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       let comDynamic: any;
       let keyComDynamic = this.doGetElementKey();
       let s = title;
-      let fType = this.gMapTables.get(this.state.tableName).get(arrFieldsWritable[i]).type;
+      let fType = this.gMapTablesInfo.get(this.state.tableName).fields.get(arrFieldsWritable[i]).type;
 
       switch (fType) {
         case "int":
@@ -688,7 +713,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
         //     break
         //   }
         // }
-        let strType = this.gMapTables.get(this.state.tableName).get(propertyName).type;
+        let strType = this.gMapTablesInfo.get(this.state.tableName).fields.get(propertyName).type;
         if (strType === "int") {
           let oTemp = " = ";
           let vTemp = this.gArrSelectedRowValues[0][propertyName];
@@ -805,23 +830,27 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   onChangeInput(e: any, sender: string, type: string) {
     switch (type) {
       case 'int':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) this.gMapAntdSelectedRowValues.set(sender,
-          {value: 0, type: "int", operator: "="});
+        if (!this.gMapAntdSelectedRowValues.has(sender))
+          this.gMapAntdSelectedRowValues.set(sender, {value: 0, type: "int", operator: ">="});
+
         this.gMapAntdSelectedRowValues.get(sender).value = e;
         break
       case 'varchar':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) this.gMapAntdSelectedRowValues.set(sender,
-          {value: "", type: "varchar", operator: "like"});
+        if (!this.gMapAntdSelectedRowValues.has(sender))
+          this.gMapAntdSelectedRowValues.set(sender, {value: "", type: "varchar", operator: "like"});
+
         this.gMapAntdSelectedRowValues.get(sender).value = e.target.value;
         break
       case 'date':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) this.gMapAntdSelectedRowValues.set(sender,
-          {value: {date: "", time: ""}, type: "datetime", operator: ">="});
+        if (!this.gMapAntdSelectedRowValues.has(sender))
+          this.gMapAntdSelectedRowValues.set(sender, {value: {date: "", time: ""}, type: "datetime", operator: ">="});
+
         this.gMapAntdSelectedRowValues.get(sender).value.date = e.format("YYYY-MM-DD");
         break
       case 'time':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) this.gMapAntdSelectedRowValues.set(sender,
-          {value: {date: "", time: ""}, type: "datetime", operator: ">="});
+        if (!this.gMapAntdSelectedRowValues.has(sender))
+          this.gMapAntdSelectedRowValues.set(sender, {value: {date: "", time: ""}, type: "datetime", operator: ">="});
+
         this.gMapAntdSelectedRowValues.get(sender).value.time = e.format("HH:mm:ss");
         break
     }
@@ -863,41 +892,77 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   onChangeTableSelected(e: any) {
     this.gStrSql = "select * from " + e;
     this.gMapAntdSelectedRowValues = new Map();
-    this.setState({antdTableDatasource: [], antdTableColumns: []});
+    this.gMapQueryFieldsInfo = new Map();
+    this.setState({
+      tableName: e,
+      antdTableDatasource: [],
+      antdTableColumns: []});
   }
 
   onChangeQueryFieldOperatorSelected(e: any, sender: string, type: string) {
-    console.log(e, sender);
     switch (type) {
       case 'int':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) {
-          this.gMapAntdSelectedRowValues.set(sender, {value: undefined, type: "int", operator: e});
+        if (!this.gMapQueryFieldsInfo.has(sender)) {
+          this.gMapQueryFieldsInfo.set(sender, {value: undefined, type: "int", operator: e});
         } else {
-          this.gMapAntdSelectedRowValues.get(sender).operator = e;
+          this.gMapQueryFieldsInfo.get(sender).operator = e;
         }
         break
       case 'varchar':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) {
-          this.gMapAntdSelectedRowValues.set(sender, {value: undefined, type: "varchar", operator: e});
+        if (!this.gMapQueryFieldsInfo.has(sender)) {
+          this.gMapQueryFieldsInfo.set(sender, {value: undefined, type: "varchar", operator: e});
         } else {
-          this.gMapAntdSelectedRowValues.get(sender).operator = e;
+          this.gMapQueryFieldsInfo.get(sender).operator = e;
         }
         break
       case 'date':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) {
-          this.gMapAntdSelectedRowValues.set(sender, {value: undefined, type: "datetime", operator: e});
+        if (!this.gMapQueryFieldsInfo.has(sender)) {
+          this.gMapQueryFieldsInfo.set(sender, {value: undefined, type: "datetime", operator: e});
         } else {
-          this.gMapAntdSelectedRowValues.get(sender).operator.date = e;
+          this.gMapQueryFieldsInfo.get(sender).operator.date = e;
         }
         break
       case 'time':
-        if (!this.gMapAntdSelectedRowValues.has(sender)) {
-          this.gMapAntdSelectedRowValues.set(sender, {value: undefined, type: "datetime", operator: e});
+        if (!this.gMapQueryFieldsInfo.has(sender)) {
+          this.gMapQueryFieldsInfo.set(sender, {value: undefined, type: "datetime", operator: e});
         } else {
-          this.gMapAntdSelectedRowValues.get(sender).operator.time = e;
+          this.gMapQueryFieldsInfo.get(sender).operator.time = e;
         }
         break
     }
+  }
+
+  onChangeQueryFieldValueInput(e: any, sender: string, type: string) {
+    switch (type) {
+      case 'int':
+        if (!this.gMapQueryFieldsInfo.has(sender))
+          this.gMapQueryFieldsInfo.set(sender, {value: 0, type: "int", operator: "greatEqual"});
+
+        this.gMapQueryFieldsInfo.get(sender).value = e;
+        break
+      case 'varchar':
+        if (!this.gMapQueryFieldsInfo.has(sender))
+          this.gMapQueryFieldsInfo.set(sender, {value: "", type: "varchar", operator: "like"});
+
+        this.gMapQueryFieldsInfo.get(sender).value = e.target.value;
+        break
+      case 'date':
+        if (!this.gMapQueryFieldsInfo.has(sender))
+          this.gMapQueryFieldsInfo.set(sender, {value: {date: "", time: ""}, type: "datetime", operator: "greatEqual"});
+
+        this.gMapQueryFieldsInfo.get(sender).value.date = e.format("YYYY-MM-DD");
+        break
+      case 'time':
+        if (!this.gMapQueryFieldsInfo.has(sender))
+          this.gMapQueryFieldsInfo.set(sender, {value: {date: "", time: ""}, type: "datetime", operator: "greatEqual"});
+
+        this.gMapQueryFieldsInfo.get(sender).value.time = e.format("HH:mm:ss");
+        break
+    }
+  }
+
+  onClickButtonConfigFieldDatasource(e: any, s: any) {
+
   }
 
   render() {
