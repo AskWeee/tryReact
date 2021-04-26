@@ -7,7 +7,8 @@ export default class KSelect extends React.Component<any, any> {
     super(props);
 
     this.state = {
-      counter: 10
+      counter: 10,
+      data:["kselect-01", "kselect-02"]
     }
 
     this.showComponent = this.showComponent.bind(this);
@@ -23,12 +24,20 @@ export default class KSelect extends React.Component<any, any> {
     this.setState({counter: 1000}, () => {
       console.log(this.state.counter);
     });
+
+    let data = ["ok-01", "ok-02"];
+    this.setState({
+      data: data
+    })
   }
 
   render() {
-    return <div style={{border: "1px solid red", padding: "5px"}}>
-      <Select defaultValue="0">
-        <Select.Option key="1" value="0">00000</Select.Option>
+    return <div style={{display: "inline-block"}}>
+      <Select style={{width: "100%"}} defaultValue="0">
+        <Select.Option value="0">请选择</Select.Option>
+        {this.state.data.map((item: any) => (
+          <Select.Option key={item} value={item}>{item}</Select.Option>
+        ))}
       </Select>
     </div>
   }

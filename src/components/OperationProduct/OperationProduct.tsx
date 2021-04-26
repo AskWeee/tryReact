@@ -35,6 +35,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   //myRef = React.createRef<typeof Select>();
   ComContent: any;
   exampleRef: React.RefObject<KSelect> = React.createRef<KSelect>();
+  //gRefs = new Array<React.RefObject<KSelect>>();
+  gRefs = new Array<any>();
 
   constructor(props: IOperationProductProps) {
     super(props);
@@ -66,7 +68,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       jsxDialogDynamicConfig: new Array<any>(),
       isShownDialogDynamic: false,
       selectedRowKeys: new Array<any>(),
-      mapTableConfigDatasource: new Map()
+      mapTableConfigDatasource: new Map(),
+      tableFields4Select: {}
     }
 
 
@@ -93,6 +96,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     this.doGetSchema = this.doGetSchema.bind(this);
     this.onChangeQueryFieldOperatorSelected = this.onChangeQueryFieldOperatorSelected.bind(this);
     this.onChangeQueryFieldValueInput = this.onChangeQueryFieldValueInput.bind(this);
+    this.onChangeTableConfigSelected = this.onChangeTableConfigSelected.bind(this);
     this.onClickButtonConfigFieldDatasource = this.onClickButtonConfigFieldDatasource.bind(this);
     this.doGetTableConfigDatasource = this.doGetTableConfigDatasource.bind(this);
     this.onRefContent = this.onRefContent.bind(this);
@@ -229,14 +233,12 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   }
 
   doGetTableConfigDatasource(tableName: string) {
-    console.log(".......................", tableName);
     let strServiceIp = this.gStrServiceIp;
     let tableConfig = this.gMapTablesConfig.get(tableName);
     console.log(tableConfig);
     let fieldConfig = undefined;
     if (tableConfig !== undefined) {
       tableConfig.fields.forEach((value: any, key: any) => {
-        //todo:kkk
         fieldConfig = value;
         if (fieldConfig !== undefined) {
           let strSql = "";
@@ -363,10 +365,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
             </Select>
             <DatePicker
               key={keyComDynamic}
-              //todo::add date
               onChange={(e) => this.onChangeInput(e, s, 'date')}/>
             <TimePicker
-              //todo::add time
               onChange={(e) => this.onChangeQueryFieldValueInput(e, s, 'time')}/>
           </div>
           break
@@ -862,56 +862,6 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
         <div className="Value">{comDynamic}</div>
       </div>)
     }
-    // let style = {
-    //   display: "grid",
-    //   width: this.gDomMain.offsetWidth - 10,
-    //   height: this.gDomMain.offsetHeight - 10,
-    //   left: "5px",
-    //   top: this.gDomMain.offsetTop + 5
-    // }
-    //
-    // let jsxDialog: any = [];
-    //
-    // let arrFieldsWritable = this.doGetFieldsWritable(this.state.tableName);
-    //
-    // for (let i = 0; i < arrFieldsWritable.length; i++) {
-    //   let title = arrFieldsWritable[i];
-    //   let comDynamic: any;
-    //   let keyComDynamic = this.doGetElementKey();
-    //   let s = title;
-    //   let fType = this.gMapTablesInfo.get(this.state.tableName).fields.get(arrFieldsWritable[i]).type;
-    //
-    //   switch (fType) {
-    //     case "int":
-    //       comDynamic = <InputNumber style={{width: "100%"}}
-    //                                 key={keyComDynamic}
-    //                                 onChange={(e) => this.onChangeInput(e, s, fType)}
-    //                                 defaultValue={JSON.parse(JSON.stringify(this.gArrSelectedRowValues[0][title]))}/>
-    //       break
-    //     case "datetime":
-    //       comDynamic = <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gridGap: "5px"}}>
-    //         <DatePicker
-    //           key={keyComDynamic}
-    //           onChange={(e) => this.onChangeInput(e, s, 'date')}
-    //           defaultValue={moment(JSON.parse(JSON.stringify(this.gArrSelectedRowValues[0][title])), 'yyyy-MM-DD HH:mm:ss')}/>
-    //         <TimePicker
-    //           onChange={(e) => this.onChangeInput(e, s, 'time')}
-    //           defaultValue={moment(JSON.parse(JSON.stringify(this.gArrSelectedRowValues[0][title])), 'yyyy-MM-DD HH:mm:ss')}/>
-    //       </div>
-    //       break
-    //     default:
-    //       comDynamic = <Input
-    //         key={keyComDynamic}
-    //         onChange={(e) => this.onChangeInput(e, s, fType)}
-    //         defaultValue={JSON.parse(JSON.stringify(this.gArrSelectedRowValues[0][title]))}/>
-    //       break
-    //   }
-    //   let keyBoxField = "box_" + keyComDynamic;
-    //   jsxDialog.push(<div key={keyBoxField} className={"BoxField"}>
-    //     <div className="Title">{title}</div>
-    //     <div className="Value">{comDynamic}</div>
-    //   </div>)
-    // }
 
     this.setState({
       styleDialogDynamicUpdate: style,
@@ -1123,6 +1073,11 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
 
     let tableConfig = this.gMapTablesConfig.get(this.state.tableName);
 
+    let tables = new Array<any>();
+    this.gMapTablesInfo.forEach(function (value: any, key: any) {
+      tables.push(key);
+    })
+
     for (let i = 0; i < fields.length; i++) {
       let fieldName = fields[i].fieldName;
       let fieldType = fields[i].fieldType;
@@ -1136,30 +1091,49 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
           hasConfig = true;
         }
       }
+      console.log(fieldName, this.state.tableFields4Select[fieldName]);
 
+      // @ts-ignore
+      this.gRefs[i] = new Array<any>();
+      // @ts-ignore
+      this.gRefs[i].push(React.createRef<KSelect>());
+      console.log(this.gRefs);
+      //Object.defineProperty(this.gRefs, fieldName, {value: React.createRef<KSelect>(), enumerable: true, writable: true})
+      //Object.defineProperty(this.gRefs, fieldName, {value: React.createRef<KSelect>(), enumerable: true, writable: true})
+      //this.gRefs.push(React.createRef<KSelect>());
+
+      // @ts-ignore
+      // @ts-ignore
       comDynamic = <div className="BoxFieldsConfig">
         <div className="BoxKeyValueListSelection">
           <div className="Title">值类型</div>
           <div className="Title">来源表</div>
           <div className="Title">KEY对应字段</div>
           <div className="Title">VALUE对应字段</div>
-          <Select defaultValue={fieldType}>
+          <Select defaultValue={fieldType} onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderValueType", fieldName, 0)}}>
             <Select.Option value={fieldType}>{fieldType}</Select.Option>
             <Select.Option value="int-varchar-list">键值对列表</Select.Option>
             <Select.Option value="varchar-list">值列表</Select.Option>
           </Select>
-          <Select defaultValue="0">
+          <Select defaultValue="0" onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderValueTable", fieldName, i)}}>
             <Select.Option value="0">请选择表</Select.Option>
-            <Select.Option value="tad_product_info">tad_product_info</Select.Option>
+            {tables.map((item: any) => (
+              <Select.Option key={this.doGetElementKey()} value={item}>{item}</Select.Option>
+            ))}
           </Select>
-          <Select defaultValue="0">
+          <Select defaultValue="0" onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderKeyField", fieldName, i)}}>
             <Select.Option value="0">请选择表字段</Select.Option>
-            <Select.Option value="product_id">product_id</Select.Option>
+            {/*<Select.Option value="product_id">product_id</Select.Option>*/}
+            {this.state.tableFields4Select[fieldName].map((item: any) => (
+              <Select.Option key={this.doGetElementKey()} value={item}>{item}</Select.Option>
+            ))}
           </Select>
-          <Select defaultValue="0">
-            <Select.Option value="0">请选择表字段</Select.Option>
-            <Select.Option value="product_name">product_name</Select.Option>
-          </Select>
+
+          <KSelect ref={this.gRefs[i][0]}/>
+          {/*<Select defaultValue="0" onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderValueField", fieldName)}}>*/}
+          {/*  <Select.Option value="0">请选择表字段</Select.Option>*/}
+          {/*  <Select.Option value="product_name">product_name</Select.Option>*/}
+          {/*</Select>*/}
         </div>
       </div>
 
@@ -1188,16 +1162,6 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   }
 
   doConfigConfirm() {
-    this.gMapTablesConfig.set("tad_module_info", {fields: new Map()});
-    this.gMapTablesConfig.get("tad_module_info").fields.set("product_id", {
-      datasource: {
-        type: "int-varchar-list",
-        table: "tad_product_info",
-        fieldKey: "product_id",
-        fieldValue: "product_name"
-      }
-    });
-
     this.doGetTableConfigDatasource(this.state.tableName);
   }
 
@@ -1287,6 +1251,36 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       antdTableDatasource: [],
       antdTableColumns: []
     });
+
+    // for test begin
+    let tableFields = {
+      module_id: [
+        "test-01",
+        "test-02"
+      ],
+      module_name: [
+        "test-01",
+        "test-02"
+      ],
+      module_desc: [
+        "test-01",
+        "test-02"
+      ],
+      product_id: [
+        "test-01",
+        "test-02"
+      ],
+      module_leader: [
+        "test-01",
+        "test-02"
+      ]
+    };
+    this.setState({
+      tableFields4Select: tableFields
+    })
+    // for test end
+
+
   }
 
   onChangeQueryFieldOperatorSelected(e: any, sender: string, type: string) {
@@ -1337,6 +1331,39 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
         this.gMapAntdSelectedRowValues.get(s).value = e;
         break
     }
+  }
+
+  onChangeTableConfigSelected(e: any, s: string, f: string, i: number) {
+
+    if (!this.gMapTablesConfig.has(this.state.tableName)) {
+      this.gMapTablesConfig.set(this.state.tableName, {fields: new Map()});
+    }
+
+    if (!this.gMapTablesConfig.get(this.state.tableName).fields.has(f)) {
+      this.gMapTablesConfig.get(this.state.tableName).fields.set(f, {datasource: [{
+          type: "",
+          table: "",
+          fieldKey: "",
+          fieldValue: ""
+        }]});
+    }
+
+    if (s === "SenderValueType") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.type = e;
+    if (s === "SenderValueTable") {
+      this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.table = e;
+
+      let tableFields = JSON.parse(JSON.stringify(this.state.tableFields4Select));
+      tableFields[f] = ["changed-01", "changed-02"];
+      console.log("tableFields", tableFields);
+      this.setState({
+        tableFields4Select: tableFields
+      })
+
+      //this.exampleRef!.current!.showComponent();
+      this.gRefs[i][0]!.current!.showComponent();
+    }
+    if (s === "SenderKeyField") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.fieldKey = e;
+    if (s === "SenderValueField") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.fieldValue = e;
   }
 
   onChangeQueryFieldValueInput(e: any, sender: string, type: string) {
@@ -1471,7 +1498,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
 }
 
 interface IOperationProductProps {
-  // TODO
+
 }
 
 interface IOperationProductState {
@@ -1502,9 +1529,10 @@ interface IOperationProductState {
   isShownDialogDynamic: boolean,
   selectedRowKeys: any,
   tableFieldsWritable: string[],
-  mapTableConfigDatasource: any
+  mapTableConfigDatasource: any,
+  tableFields4Select: any
 }
 
 interface IOperationProductSnapshot {
-  // TODO
+
 }
