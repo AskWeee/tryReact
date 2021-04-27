@@ -7,7 +7,7 @@ import moment from 'moment';
 import KSelect from "./KSelect";
 
 export default class OperationProduct extends React.PureComponent<IOperationProductProps, IOperationProductState> {
-  gStrServiceIp = "10.50.10.9";
+  gStrServiceIp = "10.50.10.7";
   gStrSql = "";
   gDomMain: any;
   gMapAntdSelectedRowValues = new Map(); // 存储当前表格选中行的记录值
@@ -68,8 +68,7 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       jsxDialogDynamicConfig: new Array<any>(),
       isShownDialogDynamic: false,
       selectedRowKeys: new Array<any>(),
-      mapTableConfigDatasource: new Map(),
-      tableFields4Select: {}
+      mapTableConfigDatasource: new Map()
     }
 
 
@@ -1078,6 +1077,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       tables.push(key);
     })
 
+
+
     for (let i = 0; i < fields.length; i++) {
       let fieldName = fields[i].fieldName;
       let fieldType = fields[i].fieldType;
@@ -1091,19 +1092,11 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
           hasConfig = true;
         }
       }
-      console.log(fieldName, this.state.tableFields4Select[fieldName]);
 
-      // @ts-ignore
       this.gRefs[i] = new Array<any>();
-      // @ts-ignore
       this.gRefs[i].push(React.createRef<KSelect>());
-      console.log(this.gRefs);
-      //Object.defineProperty(this.gRefs, fieldName, {value: React.createRef<KSelect>(), enumerable: true, writable: true})
-      //Object.defineProperty(this.gRefs, fieldName, {value: React.createRef<KSelect>(), enumerable: true, writable: true})
-      //this.gRefs.push(React.createRef<KSelect>());
+      this.gRefs[i].push(React.createRef<KSelect>());
 
-      // @ts-ignore
-      // @ts-ignore
       comDynamic = <div className="BoxFieldsConfig">
         <div className="BoxKeyValueListSelection">
           <div className="Title">值类型</div>
@@ -1121,19 +1114,9 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
               <Select.Option key={this.doGetElementKey()} value={item}>{item}</Select.Option>
             ))}
           </Select>
-          <Select defaultValue="0" onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderKeyField", fieldName, i)}}>
-            <Select.Option value="0">请选择表字段</Select.Option>
-            {/*<Select.Option value="product_id">product_id</Select.Option>*/}
-            {this.state.tableFields4Select[fieldName].map((item: any) => (
-              <Select.Option key={this.doGetElementKey()} value={item}>{item}</Select.Option>
-            ))}
-          </Select>
+          <KSelect ref={this.gRefs[i][0]} onKChange = {(e:any) => { this.onChangeTableConfigSelected(e, "SenderKeyField", fieldName, i)}}/>
 
-          <KSelect ref={this.gRefs[i][0]}/>
-          {/*<Select defaultValue="0" onChange={(e) => {this.onChangeTableConfigSelected(e, "SenderValueField", fieldName)}}>*/}
-          {/*  <Select.Option value="0">请选择表字段</Select.Option>*/}
-          {/*  <Select.Option value="product_name">product_name</Select.Option>*/}
-          {/*</Select>*/}
+          <KSelect ref={this.gRefs[i][1]} onKChange = {(e:any) => { this.onChangeTableConfigSelected(e, "SenderValueField", fieldName, i)}}/>
         </div>
       </div>
 
@@ -1251,36 +1234,6 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
       antdTableDatasource: [],
       antdTableColumns: []
     });
-
-    // for test begin
-    let tableFields = {
-      module_id: [
-        "test-01",
-        "test-02"
-      ],
-      module_name: [
-        "test-01",
-        "test-02"
-      ],
-      module_desc: [
-        "test-01",
-        "test-02"
-      ],
-      product_id: [
-        "test-01",
-        "test-02"
-      ],
-      module_leader: [
-        "test-01",
-        "test-02"
-      ]
-    };
-    this.setState({
-      tableFields4Select: tableFields
-    })
-    // for test end
-
-
   }
 
   onChangeQueryFieldOperatorSelected(e: any, sender: string, type: string) {
@@ -1334,6 +1287,8 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
   }
 
   onChangeTableConfigSelected(e: any, s: string, f: string, i: number) {
+    console.log("............................", e, s, f, i);
+    let sd = new Array<any>();
 
     if (!this.gMapTablesConfig.has(this.state.tableName)) {
       this.gMapTablesConfig.set(this.state.tableName, {fields: new Map()});
@@ -1349,20 +1304,21 @@ export default class OperationProduct extends React.PureComponent<IOperationProd
     }
 
     if (s === "SenderValueType") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.type = e;
+
     if (s === "SenderValueTable") {
       this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.table = e;
 
-      let tableFields = JSON.parse(JSON.stringify(this.state.tableFields4Select));
-      tableFields[f] = ["changed-01", "changed-02"];
-      console.log("tableFields", tableFields);
-      this.setState({
-        tableFields4Select: tableFields
+      let fields = this.gMapTablesInfo.get(e).fields;
+      fields.forEach(function (value:any, key:any) {
+        sd.push(key);
       })
 
-      //this.exampleRef!.current!.showComponent();
-      this.gRefs[i][0]!.current!.showComponent();
+      this.gRefs[i][0]!.current!.showComponent(sd);
+      this.gRefs[i][1]!.current!.showComponent(sd);
     }
+
     if (s === "SenderKeyField") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.fieldKey = e;
+
     if (s === "SenderValueField") this.gMapTablesConfig.get(this.state.tableName).fields.get(f).datasource.fieldValue = e;
   }
 
@@ -1529,8 +1485,7 @@ interface IOperationProductState {
   isShownDialogDynamic: boolean,
   selectedRowKeys: any,
   tableFieldsWritable: string[],
-  mapTableConfigDatasource: any,
-  tableFields4Select: any
+  mapTableConfigDatasource: any
 }
 
 interface IOperationProductSnapshot {
